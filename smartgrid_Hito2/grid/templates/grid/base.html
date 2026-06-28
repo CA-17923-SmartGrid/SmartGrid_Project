@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Smart Grid Lima{% endblock %}</title>
+{% load static %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% block head_extra %}{% endblock %}
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #f4f5f7;
+  --bg2:     #ebedf0;
+  --surface: #ffffff;
+  --sf2:     #f8f9fb;
+  --border:  #e2e5ea;
+  --border2: #cdd1d9;
+  --text:    #0f1117;
+  --text2:   #4a5060;
+  --text3:   #8e95a3;
+  --blue:    #1a5cdb;
+  --blue2:   #2d6ef0;
+  --blue-s:  #e8eeff;
+  --amber:   #e07b00;
+  --amber-s: #fff4e0;
+  --green:   #1a7a3c;
+  --green-s: #e4f5ea;
+  --red:     #c0392b;
+  --red-s:   #fdecea;
+  --cyan:    #0a7fa8;
+  --font:    'Space Grotesk', sans-serif;
+  --mono:    'JetBrains Mono', monospace;
+  --r:       10px;
+  --r-sm:    6px;
+  --sh:      0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+  --sh2:     0 4px 20px rgba(0,0,0,.10);
+  --sh3:     0 12px 40px rgba(0,0,0,.13);
+}
+html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--text); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.6)} }
+</style>
+</head>
+<body>
+{% block body %}{% endblock %}
+</body>
+</html>

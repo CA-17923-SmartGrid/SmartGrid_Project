@@ -1,0 +1,172 @@
+{% extends "grid/base.html" %}
+{% block title %}Smart Grid Lima — Infraestructura Eléctrica{% endblock %}
+
+{% block head_extra %}
+<style>
+body { overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative; }
+
+.grid-bg {
+  position: fixed; inset: 0; z-index: 0;
+  background-image: radial-gradient(circle, #c8cdd6 1px, transparent 1px);
+  background-size: 32px 32px; opacity: .5;
+}
+.orb { position: fixed; border-radius: 50%; filter: blur(90px); z-index: 0; pointer-events: none; }
+.orb-1 { width:600px;height:600px;background:rgba(26,92,219,.07);  top:-180px; left:-160px; }
+.orb-2 { width:500px;height:500px;background:rgba(10,127,168,.06); bottom:-140px;right:-120px; }
+.orb-3 { width:350px;height:350px;background:rgba(26,122,60,.05);  top:30%;left:55%; }
+
+.center {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; max-width: 720px; padding: 0 24px;
+}
+
+.badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--blue-s); border: 1px solid rgba(26,92,219,.18);
+  border-radius: 20px; padding: 5px 14px;
+  font-size: 11px; font-family: var(--mono); color: var(--blue);
+  letter-spacing: .05em; margin-bottom: 28px;
+}
+.badge-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--blue); box-shadow: 0 0 5px var(--blue);
+  animation: pulse-dot 2s infinite;
+}
+
+.logo {
+  width: 72px; height: 72px;
+  background: linear-gradient(135deg, var(--blue), var(--blue2));
+  border-radius: 20px; display: flex; align-items: center; justify-content: center;
+  margin-bottom: 28px;
+  box-shadow: 0 8px 32px rgba(26,92,219,.25);
+  animation: float 4s ease-in-out infinite;
+}
+.logo svg { width: 38px; height: 38px; fill: #fff; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+
+h1 {
+  font-size: clamp(36px, 5.5vw, 60px); font-weight: 700;
+  letter-spacing: -0.04em; line-height: 1.06; margin-bottom: 14px; color: var(--text);
+}
+h1 .blue { color: var(--blue); }
+h1 .cyan { color: var(--cyan); }
+
+.sub {
+  font-size: 16px; color: var(--text2); line-height: 1.65;
+  max-width: 500px; margin: 0 auto 36px;
+}
+
+.cta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; margin-bottom: 52px; }
+
+.btn-hero {
+  padding: 13px 28px; border-radius: var(--r);
+  font-size: 14px; font-weight: 700; font-family: var(--font);
+  cursor: pointer; border: none;
+  background: linear-gradient(135deg, var(--blue), var(--blue2));
+  color: #fff; display: inline-flex; align-items: center; gap: 8px;
+  text-decoration: none;
+  box-shadow: 0 4px 18px rgba(26,92,219,.35); transition: all .2s;
+}
+.btn-hero:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(26,92,219,.45); }
+
+.btn-ghost {
+  padding: 13px 24px; border-radius: var(--r);
+  font-size: 14px; font-weight: 600; font-family: var(--font);
+  cursor: pointer; background: var(--surface); border: 1px solid var(--border2);
+  color: var(--text2); display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: var(--sh); transition: all .2s;
+}
+.btn-ghost:hover { background: var(--sf2); color: var(--text); box-shadow: var(--sh2); }
+
+/* stats */
+.stats {
+  display: flex; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: var(--sh2); overflow: hidden;
+}
+.stat { padding: 20px 32px; text-align: center; flex: 1; border-right: 1px solid var(--border); }
+.stat:last-child { border-right: none; }
+.stat-n { font-size: 26px; font-weight: 700; font-family: var(--mono); letter-spacing: -.04em; }
+.stat-n.blue  { color: var(--blue); }
+.stat-n.cyan  { color: var(--cyan); }
+.stat-n.green { color: var(--green); }
+.stat-n.gray  { color: var(--text2); }
+.stat-l { font-size: 10.5px; color: var(--text3); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+
+/* features */
+.features {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 10px; z-index: 1; flex-wrap: wrap; justify-content: center;
+}
+.chip {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text3); font-family: var(--mono);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px; box-shadow: var(--sh);
+}
+.chip svg { width: 11px; height: 11px; stroke: var(--blue); }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="grid-bg"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="center">
+  <div class="badge">
+    <span class="badge-dot"></span>
+    LIMA, PERÚ · MIRAFLORES / SAN ISIDRO
+  </div>
+
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9z"/></svg>
+  </div>
+
+  <h1>Red Eléctrica<br><span class="blue">Inteligente</span> <span class="cyan">Lima</span></h1>
+
+  <p class="sub">
+    Visualización y análisis de infraestructura eléctrica urbana.
+    Genera, conecta y explora la topología de la red en tiempo real.
+  </p>
+
+  <div class="cta">
+    <a href="{% url 'app' %}" class="btn-hero">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9z"/></svg>
+      Abrir aplicación
+    </a>
+    <button class="btn-ghost">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      Miraflores / San Isidro
+    </button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n blue">1,500</div><div class="stat-l">Nodos por defecto</div></div>
+    <div class="stat"><div class="stat-n cyan">+30 k</div><div class="stat-l">Conexiones generadas</div></div>
+    <div class="stat"><div class="stat-n green">100%</div><div class="stat-l">Cobertura de red</div></div>
+    <div class="stat"><div class="stat-n gray">3</div><div class="stat-l">Tipos de nodo</div></div>
+  </div>
+</div>
+
+<div class="features">
+  <div class="chip">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    Mapa interactivo
+  </div>
+  <div class="chip">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Análisis de conectividad
+  </div>
+  <div class="chip">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Exportar CSV
+  </div>
+  <div class="chip">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Backend Django · Python
+  </div>
+</div>
+{% endblock %}

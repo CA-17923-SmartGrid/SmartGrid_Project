@@ -1,0 +1,580 @@
+{% extends "grid/base.html" %}
+{% load static %}
+{% block title %}Smart Grid — Dashboard{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+html, body { height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── TOPBAR ── */
+.topbar {
+  height: 52px; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 18px; gap: 14px;
+  flex-shrink: 0; box-shadow: var(--sh);
+}
+.brand { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+.brand-icon {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--blue), var(--blue2));
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(26,92,219,.25);
+}
+.brand-icon svg { width: 15px; height: 15px; fill: #fff; }
+.brand-name { font-size: 14px; font-weight: 700; letter-spacing: -0.03em; color: var(--text); }
+.brand-name span { color: var(--blue); }
+.brand-sub { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+.brand:hover .brand-name { color: var(--blue); }
+.sep { width: 1px; height: 22px; background: var(--border); }
+
+.status-row { display: flex; align-items: center; gap: 10px; }
+.si { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); font-family: var(--mono); }
+.dot { width: 6px; height: 6px; border-radius: 50%; }
+.d-blue  { background: var(--blue);  box-shadow: 0 0 5px rgba(26,92,219,.5); }
+.d-cyan  { background: var(--cyan);  box-shadow: 0 0 5px rgba(10,127,168,.5); }
+.d-green { background: var(--green); box-shadow: 0 0 5px rgba(26,122,60,.5); }
+.d-gray  { background: var(--text3); }
+.d-pulse { animation: pulse-dot 2s infinite; }
+
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.btn {
+  padding: 6px 13px; border-radius: var(--r-sm); font-size: 12px; font-weight: 600;
+  font-family: var(--font); cursor: pointer; border: 1px solid var(--border2);
+  background: var(--surface); color: var(--text2);
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: all .15s; white-space: nowrap; box-shadow: var(--sh);
+  text-decoration: none;
+}
+.btn:hover { background: var(--sf2); color: var(--text); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-home:hover { color: var(--blue); border-color: rgba(26,92,219,.3); background: var(--blue-s); }
+.btn-blue { background: var(--blue); color: #fff; border-color: var(--blue); box-shadow: 0 2px 10px rgba(26,92,219,.3); }
+.btn-blue:hover { background: var(--blue2); border-color: var(--blue2); color: #fff; }
+.spin { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+
+/* ── WORKSPACE ── */
+.workspace { display: flex; flex: 1; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 268px; min-width: 268px; background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 2px 0 8px rgba(0,0,0,.04);
+}
+.tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--sf2); }
+.tab-btn {
+  flex: 1; padding: 11px 6px; font-size: 10.5px; font-weight: 700;
+  font-family: var(--font); color: var(--text3); background: none; border: none;
+  cursor: pointer; letter-spacing: .05em; text-transform: uppercase;
+  border-bottom: 2px solid transparent; transition: all .15s;
+}
+.tab-btn:hover { color: var(--text2); background: rgba(0,0,0,.03); }
+.tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); background: var(--surface); }
+
+.tab-pane { display: none; flex-direction: column; flex: 1; overflow-y: auto; }
+.tab-pane.active { display: flex; }
+.tab-pane::-webkit-scrollbar { width: 3px; }
+.tab-pane::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* metrics */
+.mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px; }
+.mc {
+  background: var(--sf2); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 12px 13px; position: relative; overflow: hidden;
+}
+.mc::before { content:''; position:absolute; top:0;left:0;right:0; height:3px; }
+.mc.blue::before  { background: linear-gradient(90deg,var(--blue),transparent); }
+.mc.cyan::before  { background: linear-gradient(90deg,var(--cyan),transparent); }
+.mc.green::before { background: linear-gradient(90deg,var(--green),transparent); }
+.mc.full { grid-column:1/-1; }
+.ml { font-size:9.5px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; margin-bottom:5px; }
+.mv { font-size:22px; font-weight:700; letter-spacing:-.04em; font-family:var(--mono); }
+.mv.blue{color:var(--blue)}.mv.cyan{color:var(--cyan)}.mv.green{color:var(--green)}
+.ms { font-size:10px; color:var(--text3); margin-top:3px; font-family:var(--mono); }
+.cov-bg { height:5px; background:var(--border); border-radius:3px; overflow:hidden; margin:7px 0 4px; }
+.cov-fill { height:100%; border-radius:3px; transition:width .6s cubic-bezier(.4,0,.2,1),background .3s; }
+.cov-ft { display:flex; justify-content:space-between; font-size:10px; color:var(--text3); font-family:var(--mono); }
+
+/* dist */
+.dist-sec { padding:0 14px 14px; }
+.dist-lbl { font-size:9.5px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; margin-bottom:12px; padding-top:6px; border-top:1px solid var(--border); }
+.dr { margin-bottom:11px; }
+.dh { display:flex; align-items:center; gap:7px; margin-bottom:5px; }
+.dd { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.dn { font-size:12px; color:var(--text2); flex:1; }
+.dc { font-size:12px; font-weight:700; font-family:var(--mono); }
+.db { height:3px; background:var(--border); border-radius:2px; }
+.dbf { height:3px; border-radius:2px; transition:width .5s; }
+
+/* params */
+.ps { padding:14px; display:flex; flex-direction:column; gap:16px; }
+.pl { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text2); margin-bottom:7px; font-weight:500; }
+.pv { font-family:var(--mono); font-size:11px; color:var(--blue); font-weight:600; background:var(--blue-s); padding:2px 7px; border-radius:4px; }
+input[type=range] { width:100%; -webkit-appearance:none; height:4px; background:var(--border2); border-radius:2px; outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--blue); border:2px solid #fff; cursor:pointer; box-shadow:0 0 0 2px rgba(26,92,219,.2); }
+.gen-wrap { padding:0 14px 14px; }
+
+/* export */
+.es { padding:14px; display:flex; flex-direction:column; gap:10px; }
+.en { font-size:11px; color:var(--text3); line-height:1.65; padding:10px 12px; background:var(--sf2); border:1px solid var(--border); border-radius:var(--r-sm); }
+.ec {
+  background:var(--sf2); border:1px solid var(--border); border-radius:var(--r);
+  padding:11px 13px; display:flex; align-items:center; gap:10px;
+  text-decoration:none; transition:all .15s; box-shadow:var(--sh);
+}
+.ec:hover { border-color:var(--blue); background:var(--blue-s); }
+.ec.disabled { opacity:.4; pointer-events:none; }
+.ec-icon { width:32px; height:32px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.ec-title { font-size:12px; font-weight:600; margin-bottom:2px; color:var(--text); }
+.ec-sub { font-size:10px; color:var(--text3); font-family:var(--mono); }
+
+/* map */
+.map-area { flex:1; position:relative; overflow:hidden; }
+#map { width:100%; height:100%; }
+#edge-canvas { position:absolute; top:0; left:0; pointer-events:none; z-index:400; }
+
+.loading {
+  position:absolute; inset:0; z-index:1000;
+  background:rgba(244,245,247,.88);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; backdrop-filter:blur(4px);
+}
+.loading.hidden { display:none; }
+.big-spin { width:36px; height:36px; border:3px solid var(--border2); border-top-color:var(--blue); border-radius:50%; animation:spin .8s linear infinite; box-shadow:0 0 16px rgba(26,92,219,.15); }
+.load-msg  { font-size:13px; color:var(--text2); font-family:var(--mono); font-weight:500; }
+.load-step { font-size:10px; color:var(--text3); font-family:var(--mono); letter-spacing:.06em; }
+
+.map-tl { position:absolute; top:12px; left:12px; z-index:999; display:flex; flex-direction:column; gap:6px; pointer-events:none; }
+.chip {
+  background:rgba(255,255,255,.93); border:1px solid var(--border);
+  border-radius:20px; padding:5px 12px; font-size:11px; font-family:var(--mono);
+  color:var(--text2); backdrop-filter:blur(6px); white-space:nowrap; box-shadow:var(--sh);
+}
+.chip b { color:var(--blue); font-weight:600; }
+
+.legend {
+  position:absolute; bottom:28px; left:12px; z-index:999;
+  background:rgba(255,255,255,.93); border:1px solid var(--border);
+  border-radius:var(--r); padding:12px 14px;
+  backdrop-filter:blur(6px); box-shadow:var(--sh2);
+}
+.leg-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--text3); margin-bottom:10px; }
+.leg-row { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text2); margin-bottom:7px; font-family:var(--mono); }
+.leg-row:last-child { margin-bottom:0; }
+.leg-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.leg-line { width:18px; height:2px; border-radius:1px; opacity:.5; flex-shrink:0; }
+
+/* popup */
+.sg-popup .leaflet-popup-content-wrapper { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--sh3); padding:0; color:var(--text); }
+.sg-popup .leaflet-popup-tip { background:var(--surface); }
+.sg-popup .leaflet-popup-close-button { color:var(--text3)!important; top:8px!important; right:10px!important; }
+.pop { padding:13px 15px; min-width:170px; }
+.pop-type { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-bottom:5px; font-family:var(--mono); }
+.pop-id { font-size:17px; font-weight:700; letter-spacing:-.02em; margin-bottom:10px; color:var(--text); }
+.pop-row { display:flex; justify-content:space-between; font-size:11px; color:var(--text3); margin-bottom:5px; font-family:var(--mono); }
+.pop-row span:last-child { color:var(--text2); font-weight:500; }
+
+/* toast */
+.toast {
+  position:fixed; bottom:20px; right:20px; z-index:9999;
+  background:var(--text); color:#fff;
+  padding:10px 16px; border-radius:var(--r); font-size:12px; font-family:var(--mono);
+  opacity:0; transform:translateY(8px); transition:opacity .2s,transform .2s;
+  pointer-events:none; box-shadow:var(--sh3);
+  display:flex; align-items:center; gap:8px;
+}
+.toast.on { opacity:1; transform:translateY(0); }
+.td { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="topbar">
+  <a href="{% url 'landing' %}" class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9z"/></svg>
+    </div>
+    <div>
+      <div class="brand-name">Smart<span>Grid</span></div>
+      <div class="brand-sub">MFL / SAN ISIDRO · LIMA</div>
+    </div>
+  </a>
+
+  <div class="sep"></div>
+
+  <div class="status-row">
+    <div class="si"><span class="dot d-blue d-pulse" id="dot-main"></span><span id="st-label">Iniciando</span></div>
+    <div class="sep"></div>
+    <div class="si"><span class="dot d-cyan"></span><span id="st-nodos">— nodos</span></div>
+    <div class="si"><span class="dot d-green"></span><span id="st-conn">— conexiones</span></div>
+    <div class="si"><span class="dot d-gray" id="dot-cov"></span><span id="st-cov">cob. —%</span></div>
+  </div>
+
+  <div class="topbar-right">
+    <button class="btn" id="btn-mst" onclick="toggleMST()" disabled style="border-color: var(--cyan); color: var(--cyan);">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Ver Red Óptima (MST)
+    </button>
+    <a href="{% url 'landing' %}" class="btn btn-home">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Inicio
+    </a>
+    <button class="btn" id="btn-export" onclick="exportarTodo()" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+    <button class="btn btn-blue" id="btn-gen" onclick="generarRed()">
+      <span class="spin" id="sp" style="display:none"></span>
+      <svg id="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Generar red
+    </button>
+  </div>
+</div>
+
+<div class="workspace">
+
+  <div class="sidebar">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="setTab('metrics',this)">Métricas</button>
+      <button class="tab-btn" onclick="setTab('params',this)">Parámetros</button>
+      <button class="tab-btn" onclick="setTab('export',this)">Exportar</button>
+    </div>
+
+    <div class="tab-pane active" id="tab-metrics">
+      <div class="mgrid">
+        <div class="mc blue"><div class="ml">Nodos</div><div class="mv blue" id="m-n">—</div></div>
+        <div class="mc cyan"><div class="ml">Conexiones</div><div class="mv cyan" id="m-c">—</div></div>
+        
+        <div class="mc full" style="border-color: var(--cyan); background: rgba(10,127,168,0.05);">
+          <div class="ml" style="color: var(--cyan);">Longitud de Cableado Óptimo</div>
+          <div class="mv" id="m-costo" style="color: var(--cyan);">—</div>
+          <div class="ms">Metros totales (Algoritmo Kruskal)</div>
+        </div>
+
+        <div class="mc green full">
+          <div class="ml">Cobertura de red</div>
+          <div class="mv green" id="m-cov" style="font-size:20px;margin-bottom:2px">—</div>
+          <div class="cov-bg"><div class="cov-fill" id="cov-fill" style="width:0%"></div></div>
+          <div class="cov-ft"><span id="cov-n">—</span><span id="cov-p">—</span></div>
+        </div>
+        <div class="mc"><div class="ml">Densidad</div><div class="mv" id="m-d" style="color:var(--text2)">—</div><div class="ms">conn / nodo</div></div>
+        <div class="mc"><div class="ml">Estado</div><div class="mv" id="m-e" style="font-size:13px;margin-top:4px;color:var(--text3)">—</div></div>
+      </div>
+      <div class="dist-sec">
+        <div class="dist-lbl">Distribución de nodos</div>
+        <div class="dr">
+          <div class="dh"><span class="dd" style="background:var(--blue)"></span><span class="dn">Postes</span><span class="dc" id="d-p" style="color:var(--blue)">—</span></div>
+          <div class="db"><div class="dbf" id="db-p" style="background:var(--blue);width:0%"></div></div>
+        </div>
+        <div class="dr">
+          <div class="dh"><span class="dd" style="background:var(--red)"></span><span class="dn">Subestaciones</span><span class="dc" id="d-s" style="color:var(--red)">—</span></div>
+          <div class="db"><div class="dbf" id="db-s" style="background:var(--red);width:0%"></div></div>
+        </div>
+        <div class="dr">
+          <div class="dh"><span class="dd" style="background:var(--green)"></span><span class="dn">Puntos de carga</span><span class="dc" id="d-c" style="color:var(--green)">—</span></div>
+          <div class="db"><div class="dbf" id="db-c" style="background:var(--green);width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-params">
+      <div class="ps">
+        <div>
+          <div class="pl">Número de nodos <span class="pv" id="pv-n">1500</span></div>
+          <input type="range" min="200" max="2000" value="1500" id="sl-n" oninput="document.getElementById('pv-n').textContent=this.value">
+        </div>
+        <div>
+          <div class="pl">Umbral de distancia <span class="pv" id="pv-d">0.0030</span></div>
+          <input type="range" min="10" max="60" value="30" id="sl-d" oninput="document.getElementById('pv-d').textContent=(this.value*.0001).toFixed(4)">
+        </div>
+        <div>
+          <div class="pl">Semilla aleatoria <span class="pv" id="pv-s">42</span></div>
+          <input type="range" min="1" max="100" value="42" id="sl-s" oninput="document.getElementById('pv-s').textContent=this.value">
+        </div>
+      </div>
+      <div class="gen-wrap">
+        <button class="btn btn-blue" style="width:100%;justify-content:center;padding:9px;" onclick="generarRed()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Aplicar y regenerar
+        </button>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-export">
+      <div class="es">
+        <div class="en">Datasets en CSV con separador punto y coma (;), generados por el servidor Django.</div>
+        <a class="ec disabled" id="ec-n" href="#" target="_blank">
+          <div class="ec-icon" style="background:var(--blue-s);color:var(--blue)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+          </div>
+          <div style="flex:1">
+            <div class="ec-title">dataset_nodos.csv</div>
+            <div class="ec-sub" id="ec-n-meta">id · lat · lon · tipo</div>
+          </div>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text3)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>
+        <a class="ec disabled" id="ec-c" href="#" target="_blank">
+          <div class="ec-icon" style="background:var(--green-s);color:var(--green)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+          <div style="flex:1">
+            <div class="ec-title">dataset_conexiones.csv</div>
+            <div class="ec-sub" id="ec-c-meta">origen · destino · distancia_m</div>
+          </div>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text3)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="map-area" id="map-area">
+    <div id="map"></div>
+    <canvas id="edge-canvas"></canvas>
+    <div class="loading" id="loading">
+      <div class="big-spin"></div>
+      <div class="load-msg" id="load-msg">Conectando con el servidor...</div>
+      <div class="load-step" id="load-step">·</div>
+    </div>
+    <div class="map-tl">
+      <div class="chip">Zoom <b id="chip-z">14</b></div>
+      <div class="chip" id="chip-vis">— conexiones visibles</div>
+    </div>
+    <div class="legend">
+      <div class="leg-title">Leyenda</div>
+      <div class="leg-row"><span class="leg-dot" style="background:var(--blue)"></span>Poste</div>
+      <div class="leg-row"><span class="leg-dot" style="background:var(--red)"></span>Subestación</div>
+      <div class="leg-row"><span class="leg-dot" style="background:var(--green)"></span>Pto. de carga</div>
+      <div class="leg-row"><span class="leg-line" style="background:var(--cyan)"></span>Conexión</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="td" id="td"></span><span id="tm"></span></div>
+
+<script>
+
+let mostrandoMST = false;
+
+const COLORES = { 'Poste':'#1a5cdb', 'Subestación':'#c0392b', 'Punto_Carga':'#1a7a3c' };
+const RADIOS  = { 'Poste':4, 'Subestación':9, 'Punto_Carga':6 };
+
+const cvR  = L.canvas({ padding: 0.5 });
+const map  = L.map('map', { center:[-12.105,-77.035], zoom:14, renderer:cvR, zoomControl:false });
+L.control.zoom({ position:'bottomright' }).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution:'© OpenStreetMap © CARTO', maxZoom:19
+}).addTo(map);
+
+const edgeCv = document.getElementById('edge-canvas');
+const ectx   = edgeCv.getContext('2d');
+let nodeLayer = null, cache = null;
+
+map.on('zoomend moveend', redrawEdges);
+map.on('zoomend', () => document.getElementById('chip-z').textContent = map.getZoom());
+window.addEventListener('resize', () => { resizeCanvas(); redrawEdges(); });
+
+function resizeCanvas() {
+  const a = document.getElementById('map-area');
+  edgeCv.width = a.clientWidth; edgeCv.height = a.clientHeight;
+}
+
+function toggleMST() {
+  mostrandoMST = !mostrandoMST;
+  const btn = document.getElementById('btn-mst');
+  if (mostrandoMST) {
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg> Ocultar MST';
+    btn.style.background = 'var(--cyan)';
+    btn.style.color = '#fff';
+  } else {
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Ver Red Óptima (MST)';
+    btn.style.background = 'transparent';
+    btn.style.color = 'var(--cyan)';
+  }
+  redrawEdges();
+}
+
+function redrawEdges() {
+  if (!cache) return;
+  resizeCanvas();
+  ectx.clearRect(0, 0, edgeCv.width, edgeCv.height);
+  
+  // Condición: mostramos el mst o todas las conexiones generadas
+  const conexionesADibujar = mostrandoMST ? cache.mst_aristas : cache.conexiones;
+  const MAX = 10000;
+  const lim = Math.min(conexionesADibujar.length, MAX);
+  
+  // Estilo condicional
+  if (mostrandoMST) {
+    ectx.strokeStyle = 'rgba(26, 122, 60, 0.8)'; // Verde más grueso para Kruskal
+    ectx.lineWidth   = 2.0;
+  } else {
+    ectx.strokeStyle = 'rgba(10,127,168,0.2)'; // Finito para la red base
+    ectx.lineWidth   = 0.8;
+  }
+  
+  ectx.beginPath();
+  for (let i = 0; i < lim; i++) {
+    const c  = conexionesADibujar[i];
+    const a  = cache.nodos[c.origen];
+    const b  = cache.nodos[c.destino];
+    const pa = map.latLngToContainerPoint([a.lat, a.lon]);
+    const pb = map.latLngToContainerPoint([b.lat, b.lon]);
+    ectx.moveTo(pa.x, pa.y); ectx.lineTo(pb.x, pb.y);
+  }
+  ectx.stroke();
+  
+  document.getElementById('chip-vis').innerHTML = '<b>' + lim.toLocaleString() + '</b> ' + (mostrandoMST ? 'cables óptimos' : 'conexiones posibles');
+}
+
+function renderNodos(nodos) {
+  if (nodeLayer) map.removeLayer(nodeLayer);
+  nodeLayer = L.layerGroup();
+  for (const nd of nodos) {
+    const color = COLORES[nd.tipo] || '#888', r = RADIOS[nd.tipo] || 4;
+    L.circleMarker([nd.lat, nd.lon], {
+      renderer: cvR, radius: r, fillColor: color,
+      color: 'rgba(255,255,255,0.7)', weight: 1.5, fillOpacity: .9
+    }).bindPopup(`
+      <div class="pop">
+        <div class="pop-type" style="color:${color}">${nd.tipo.replace('_',' ')}</div>
+        <div class="pop-id">#${String(nd.id).padStart(4,'0')}</div>
+        <div class="pop-row"><span>Latitud</span><span>${nd.lat.toFixed(5)}</span></div>
+        <div class="pop-row"><span>Longitud</span><span>${nd.lon.toFixed(5)}</span></div>
+        <div class="pop-row"><span>Tipo</span><span>${nd.tipo.replace('_',' ')}</span></div>
+      </div>`, { className:'sg-popup', maxWidth:210 }
+    ).addTo(nodeLayer);
+  }
+  nodeLayer.addTo(map);
+}
+
+function actualizarUI(data) {
+  const s = data.stats, n = s.total_nodos, m = s.total_conn;
+  const pct = s.cobertura, conexo = s.conexo;
+
+  document.getElementById('st-label').textContent = conexo ? 'En línea' : 'Parcial';
+  document.getElementById('dot-main').className = 'dot d-pulse ' + (conexo ? 'd-green' : 'd-blue');
+  document.getElementById('st-nodos').textContent = n.toLocaleString() + ' nodos';
+  document.getElementById('st-conn').textContent  = m.toLocaleString() + ' conexiones';
+  document.getElementById('st-cov').textContent   = 'cob. ' + pct + '%';
+  const dc = document.getElementById('dot-cov');
+  dc.className = 'dot ' + (conexo ? 'd-green' : 'd-blue');
+
+  document.getElementById('m-n').textContent = n.toLocaleString();
+  document.getElementById('m-c').textContent = m.toLocaleString();
+  document.getElementById('m-cov').textContent = pct + '%';
+  document.getElementById('m-d').textContent = s.densidad;
+
+ 
+  if (data.costo_mst) {
+    document.getElementById('m-costo').textContent = (data.costo_mst / 1000).toFixed(2) + " km";
+    document.getElementById('btn-mst').disabled = false;
+  }
+
+  const f = document.getElementById('cov-fill');
+  f.style.width = pct + '%'; f.style.background = conexo ? 'var(--green)' : 'var(--blue)';
+  document.getElementById('cov-n').textContent = s.alcanzados.toLocaleString() + ' conectados';
+  document.getElementById('cov-p').textContent = pct + '%';
+
+  const me = document.getElementById('m-e');
+  me.textContent = conexo ? 'CONEXO' : 'PARCIAL';
+  me.style.color = conexo ? 'var(--green)' : 'var(--amber)';
+
+  document.getElementById('d-p').textContent = s.postes.toLocaleString();
+  document.getElementById('d-s').textContent = s.subestaciones.toLocaleString();
+  document.getElementById('d-c').textContent = s.puntos_carga.toLocaleString();
+  document.getElementById('db-p').style.width = (s.postes / n * 100) + '%';
+  document.getElementById('db-s').style.width = (s.subestaciones / n * 100) + '%';
+  document.getElementById('db-c').style.width = (s.puntos_carga / n * 100) + '%';
+
+  document.getElementById('ec-n-meta').textContent = n.toLocaleString() + ' registros';
+  document.getElementById('ec-c-meta').textContent = m.toLocaleString() + ' registros';
+}
+
+async function generarRed() {
+  const n      = document.getElementById('sl-n').value;
+  const umbral = (document.getElementById('sl-d').value * 0.0001).toFixed(4);
+  const seed   = document.getElementById('sl-s').value;
+
+  setBusy(true);
+  setLoading(true, 'Generando red en el servidor...', 'DJANGO · PYTHON');
+
+  try {
+    const resp = await fetch(`/api/red/?n=${n}&umbral=${umbral}&seed=${seed}`);
+    if (!resp.ok) throw new Error('Error del servidor');
+    const data = await resp.json();
+    cache = data;
+
+    // Resetear el estado del MST al generar una red nueva
+    mostrandoMST = false;
+    const btn = document.getElementById('btn-mst');
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Ver Red Óptima (MST)';
+    btn.style.background = 'transparent';
+    btn.style.color = 'var(--cyan)';
+
+    setLoading(true, 'Renderizando mapa...', 'VISUALIZACIÓN');
+    await tick();
+
+    actualizarUI(data);
+    renderNodos(data.nodos);
+    await tick();
+    redrawEdges();
+
+    //  exportar
+    document.getElementById('btn-export').disabled = false;
+    const qp = `?tipo=nodos&n=${n}&umbral=${umbral}&seed=${seed}`;
+    const qc = `?tipo=conexiones&n=${n}&umbral=${umbral}&seed=${seed}`;
+    const en = document.getElementById('ec-n');
+    const ec = document.getElementById('ec-c');
+    en.href = '/api/exportar/' + qp; en.classList.remove('disabled');
+    ec.href = '/api/exportar/' + qc; ec.classList.remove('disabled');
+
+    setLoading(false); setBusy(false);
+    toast(data.stats.total_conn.toLocaleString() + ' conexiones generadas', 'green');
+  } catch(e) {
+    setLoading(false); setBusy(false);
+    toast('Error al conectar con el servidor', 'red');
+  }
+}
+
+function exportarTodo() {
+  const n      = document.getElementById('sl-n').value;
+  const umbral = (document.getElementById('sl-d').value * 0.0001).toFixed(4);
+  const seed   = document.getElementById('sl-s').value;
+  window.open(`/api/exportar/?tipo=nodos&n=${n}&umbral=${umbral}&seed=${seed}`);
+  setTimeout(() => window.open(`/api/exportar/?tipo=conexiones&n=${n}&umbral=${umbral}&seed=${seed}`), 500);
+}
+
+function setTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+const tick = () => new Promise(r => setTimeout(r, 0));
+function setBusy(on) {
+  document.getElementById('btn-gen').disabled = on;
+  document.getElementById('sp').style.display = on ? '' : 'none';
+  document.getElementById('ic').style.display = on ? 'none' : '';
+}
+function setLoading(on, msg, step) {
+  document.getElementById('loading').classList.toggle('hidden', !on);
+  if (msg)  document.getElementById('load-msg').textContent  = msg;
+  if (step) document.getElementById('load-step').textContent = step;
+}
+let _tt;
+function toast(msg, color = 'blue') {
+  const clr = color==='green' ? '#1a7a3c' : color==='red' ? '#c0392b' : '#1a5cdb';
+  const dot = document.getElementById('td');
+  dot.style.background = clr; dot.style.boxShadow = '0 0 5px ' + clr;
+  document.getElementById('tm').textContent = msg;
+  const el = document.getElementById('toast'); el.classList.add('on');
+  clearTimeout(_tt); _tt = setTimeout(() => el.classList.remove('on'), 2800);
+}
+
+// Carga automática al entrar
+generarRed();
+</script>
+{% endblock %}
